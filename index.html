@@ -153,6 +153,99 @@
       font-size: 1.6rem;
     }
 
+    /* Attendance by date */
+    .by-date { margin-bottom: 44px; }
+    .date-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .date-controls input {
+      padding: 10px 12px;
+    }
+    button.chip {
+      display: inline-block;
+      width: auto;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--gold);
+      border: 1px solid var(--line);
+    }
+    button.chip:hover {
+      transform: scale(1.05);
+      filter: none;
+      box-shadow: none;
+      border-color: var(--gold);
+      background: #1d1c22;
+    }
+    button.chip:active { transform: scale(0.96); }
+    button.chip.active {
+      background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+      color: #1a1405;
+      border-color: transparent;
+    }
+    button.chip.active:hover {
+      background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+    }
+    .date-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .chips-label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .date-note {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .group {
+      background: var(--surface);
+      border: 1px solid #2b2618;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .group-head {
+      color: var(--gold);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .col h4 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .col.present h4 { color: #7bd88f; }
+    .col.absent h4 { color: #ff8a80; }
+    .col ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .col .none { margin: 0; color: var(--muted); font-size: 14px; }
+    .hint { color: var(--muted); padding: 8px 0; }
+
     /* Search and filters */
     .toolbar {
       display: grid;
@@ -249,6 +342,7 @@
     }
     @media (max-width: 560px) {
       .toolbar { grid-template-columns: 1fr; }
+      .cols { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -272,6 +366,18 @@
         <div class="stat"><div class="stat-value" id="statCourses">0</div><div class="stat-label">Courses</div></div>
         <div class="stat"><div class="stat-value" id="statDays">0</div><div class="stat-label">Lab days recorded</div></div>
         <div class="stat"><div class="stat-value" id="statLatest">-</div><div class="stat-label">Latest date recorded</div></div>
+      </section>
+
+      <section class="by-date">
+        <h2>Attendance by Date</h2>
+        <div class="date-controls">
+          <input type="date" id="viewDate">
+          <button type="button" class="chip" id="btnToday">Today</button>
+          <button type="button" class="chip" id="btnYesterday">Yesterday</button>
+        </div>
+        <div class="date-chips" id="dateChips"></div>
+        <p class="date-note">Absent means the student is in the same course and subject but has no entry for that date.</p>
+        <div id="dateResult"></div>
       </section>
 
       <h2>Attendance Records</h2>
@@ -308,6 +414,16 @@
 
     function dayKey(value) {
       return new Date(value).toISOString().slice(0, 10);
+    }
+
+    // Local calendar date as YYYY-MM-DD (offsetDays = 1 means yesterday)
+    function localKey(offsetDays) {
+      const d = new Date();
+      d.setDate(d.getDate() - offsetDays);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
     }
 
     function fillSelect(select, values, allLabel) {
@@ -347,6 +463,116 @@
       fillSelect($('subjectFilter'), subjects, 'All subjects');
     }
 
+    /* ---------- Attendance by date ---------- */
+    function recordedDays() {
+      const set = new Set();
+      allRecords.forEach(r => (r.attendance || []).forEach(a => set.add(dayKey(a.date))));
+      return [...set].sort().reverse();
+    }
+
+    function selectDate(key) {
+      $('viewDate').value = key;
+      renderDateChips();
+      renderDateView();
+    }
+
+    function renderDateChips() {
+      const box = $('dateChips');
+      box.textContent = '';
+      const days = recordedDays();
+      if (days.length === 0) return;
+      const label = document.createElement('span');
+      label.className = 'chips-label';
+      label.textContent = 'Recorded dates:';
+      box.appendChild(label);
+      days.forEach(k => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip' + (k === $('viewDate').value ? ' active' : '');
+        b.textContent = formatDate(k);
+        b.addEventListener('click', () => selectDate(k));
+        box.appendChild(b);
+      });
+    }
+
+    function buildColumn(title, cls, names) {
+      const col = document.createElement('div');
+      col.className = 'col ' + cls;
+      const h = document.createElement('h4');
+      h.textContent = title + ' (' + names.length + ')';
+      col.appendChild(h);
+      if (names.length === 0) {
+        const none = document.createElement('p');
+        none.className = 'none';
+        none.textContent = 'None';
+        col.appendChild(none);
+      } else {
+        const ul = document.createElement('ul');
+        names.forEach(n => {
+          const li = document.createElement('li');
+          li.textContent = n;
+          ul.appendChild(li);
+        });
+        col.appendChild(ul);
+      }
+      return col;
+    }
+
+    function renderDateView() {
+      const key = $('viewDate').value;
+      const out = $('dateResult');
+      out.textContent = '';
+
+      if (!key) {
+        const p = document.createElement('p');
+        p.className = 'hint';
+        p.textContent = 'Choose a date to see who was present and who was absent.';
+        out.appendChild(p);
+        return;
+      }
+
+      const groups = {};
+      allRecords.forEach(r => {
+        const g = r.course + ' - ' + r.subjectName;
+        (groups[g] = groups[g] || []).push(r);
+      });
+
+      const byName = (a, b) => a.localeCompare(b);
+      let shown = 0;
+
+      Object.keys(groups).sort().forEach(g => {
+        const members = groups[g];
+        const isPresent = (r) =>
+          (r.attendance || []).some(a => dayKey(a.date) === key);
+        const present = members.filter(isPresent).map(r => r.studentName).sort(byName);
+        if (present.length === 0) return; // nobody attended, so not a recorded lab day
+        const absent = members.filter(r => !isPresent(r)).map(r => r.studentName).sort(byName);
+
+        const card = document.createElement('div');
+        card.className = 'group';
+        const head = document.createElement('div');
+        head.className = 'group-head';
+        head.textContent = g;
+        const cols = document.createElement('div');
+        cols.className = 'cols';
+        cols.appendChild(buildColumn('Present', 'present', present));
+        cols.appendChild(buildColumn('Absent', 'absent', absent));
+        card.appendChild(head);
+        card.appendChild(cols);
+        out.appendChild(card);
+        shown++;
+      });
+
+      if (shown === 0) {
+        const p = document.createElement('p');
+        p.className = 'hint';
+        p.textContent = 'No attendance recorded on ' + formatDate(key) +
+          '. Try one of the recorded dates above.';
+        out.appendChild(p);
+      }
+    }
+
+    /* ---------- Student list ---------- */
     function buildCard(r, showMeta) {
       const card = document.createElement('div');
       card.className = 'card';
@@ -452,6 +678,8 @@
         updateStats();
         updateFilters();
         render();
+        renderDateChips();
+        renderDateView();
       } catch (error) {
         $('recordsContainer').textContent = 'Error loading records.';
       }
@@ -460,6 +688,13 @@
     ['search', 'courseFilter', 'subjectFilter', 'sortBy'].forEach(id => {
       $(id).addEventListener(id === 'search' ? 'input' : 'change', render);
     });
+
+    $('viewDate').addEventListener('change', () => {
+      renderDateChips();
+      renderDateView();
+    });
+    $('btnToday').addEventListener('click', () => selectDate(localKey(0)));
+    $('btnYesterday').addEventListener('click', () => selectDate(localKey(1)));
 
     $('dataForm').addEventListener('submit', async (e) => {
       e.preventDefault();
