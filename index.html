@@ -108,6 +108,11 @@
       transform: scale(0.96);
       box-shadow: 0 2px 8px rgba(245, 197, 66, 0.25);
     }
+    button.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
 
     /* Right side */
     .container {
@@ -162,9 +167,7 @@
       align-items: center;
       margin-bottom: 12px;
     }
-    .date-controls input {
-      padding: 10px 12px;
-    }
+    .date-controls input { padding: 10px 12px; }
     button.chip {
       display: inline-block;
       width: auto;
@@ -199,15 +202,8 @@
       align-items: center;
       margin-bottom: 14px;
     }
-    .chips-label {
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .date-note {
-      margin: 0 0 14px;
-      color: var(--muted);
-      font-size: 12px;
-    }
+    .chips-label { color: var(--muted); font-size: 13px; }
+    .date-note { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
     .group {
       background: var(--surface);
       border: 1px solid #2b2618;
@@ -257,11 +253,7 @@
       width: 100%;
       padding: 11px 12px;
     }
-    .result-count {
-      margin: 0 0 6px;
-      color: var(--muted);
-      font-size: 13px;
-    }
+    .result-count { margin: 0 0 6px; color: var(--muted); font-size: 13px; }
 
     h3 {
       margin: 26px 0 10px;
@@ -313,12 +305,110 @@
       letter-spacing: 0.05em;
       text-transform: uppercase;
     }
-    .dates {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 14px;
-    }
+    .dates { margin-top: 6px; color: var(--muted); font-size: 14px; }
     .empty { color: var(--muted); padding: 20px 0; }
+
+    /* Edit / delete buttons on each card */
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    button.mini {
+      display: inline-block;
+      width: auto;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--gold);
+      border: 1px solid var(--line);
+    }
+    button.mini:hover {
+      transform: scale(1.06);
+      filter: none;
+      box-shadow: none;
+      background: rgba(245, 197, 66, 0.12);
+      border-color: var(--gold);
+    }
+    button.mini:active { transform: scale(0.95); }
+    button.mini.danger { color: #ff8a80; border-color: rgba(255, 138, 128, 0.45); }
+    button.mini.danger:hover {
+      background: rgba(255, 138, 128, 0.14);
+      border-color: #ff8a80;
+    }
+
+    /* Edit dialog */
+    dialog {
+      width: min(520px, 92vw);
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+    dialog h3 {
+      margin: 0 0 16px;
+      font-size: 1.2rem;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    #editForm {
+      background: none;
+      border: 0;
+      padding: 0;
+      box-shadow: none;
+    }
+    dialog label {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .edit-dates {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .date-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px 4px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--gold);
+    }
+    .date-pill button {
+      display: inline-block;
+      width: auto;
+      padding: 0 8px;
+      background: transparent;
+      color: #ff8a80;
+      border: 0;
+      border-radius: 50%;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    .date-pill button:hover {
+      transform: none;
+      filter: none;
+      box-shadow: none;
+      background: rgba(255, 138, 128, 0.18);
+    }
+    .edit-note { margin: 0 0 18px; color: var(--muted); font-size: 12px; }
+    .dialog-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
 
     /* Narrower screens */
     @media (max-width: 1200px) {
@@ -328,7 +418,6 @@
       .toolbar { grid-template-columns: 1fr 1fr; }
       .toolbar #search { grid-column: 1 / -1; }
     }
-    /* Phones and small tablets: stack the columns */
     @media (max-width: 900px) {
       .layout { grid-template-columns: 1fr; }
       .sidebar {
@@ -400,9 +489,30 @@
     </main>
   </div>
 
+  <dialog id="editDialog">
+    <h3>Edit student</h3>
+    <form id="editForm">
+      <label for="editName">Student name</label>
+      <input type="text" id="editName" required>
+      <label for="editSubject">Subject name</label>
+      <input type="text" id="editSubject" required>
+      <label for="editCourse">Course</label>
+      <input type="text" id="editCourse" required>
+      <label>Attendance dates</label>
+      <div class="edit-dates" id="editDates"></div>
+      <p class="edit-note">Click the x on a date to remove it. Changes are saved when you press Save.</p>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="editCancel">Cancel</button>
+        <button type="submit">Save changes</button>
+      </div>
+    </form>
+  </dialog>
+
   <script>
     const API_URL = 'https://studentapibackend.vercel.app/api';
     let allRecords = [];
+    let editingId = null;
+    let editDates = [];
 
     const $ = (id) => document.getElementById(id);
 
@@ -545,7 +655,7 @@
         const isPresent = (r) =>
           (r.attendance || []).some(a => dayKey(a.date) === key);
         const present = members.filter(isPresent).map(r => r.studentName).sort(byName);
-        if (present.length === 0) return; // nobody attended, so not a recorded lab day
+        if (present.length === 0) return;
         const absent = members.filter(r => !isPresent(r)).map(r => r.studentName).sort(byName);
 
         const card = document.createElement('div');
@@ -571,6 +681,101 @@
         out.appendChild(p);
       }
     }
+
+    /* ---------- Edit and delete ---------- */
+    async function readError(res) {
+      try {
+        const data = await res.json();
+        return data.error || 'Something went wrong.';
+      } catch (e) {
+        return 'Something went wrong.';
+      }
+    }
+
+    function renderEditDates() {
+      const box = $('editDates');
+      box.textContent = '';
+      if (editDates.length === 0) {
+        const p = document.createElement('span');
+        p.className = 'chips-label';
+        p.textContent = 'No dates';
+        box.appendChild(p);
+        return;
+      }
+      editDates.forEach(key => {
+        const pill = document.createElement('span');
+        pill.className = 'date-pill';
+        const text = document.createElement('span');
+        text.textContent = formatDate(key);
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.textContent = '\u00d7';
+        x.title = 'Remove this date';
+        x.addEventListener('click', () => {
+          editDates = editDates.filter(k => k !== key);
+          renderEditDates();
+        });
+        pill.appendChild(text);
+        pill.appendChild(x);
+        box.appendChild(pill);
+      });
+    }
+
+    function openEdit(r) {
+      editingId = r._id;
+      $('editName').value = r.studentName || '';
+      $('editSubject').value = r.subjectName || '';
+      $('editCourse').value = r.course || '';
+      editDates = (r.attendance || []).map(a => dayKey(a.date)).sort();
+      renderEditDates();
+      $('editDialog').showModal();
+    }
+
+    async function deleteStudent(r) {
+      const n = (r.attendance || []).length;
+      const ok = confirm(
+        'Delete ' + r.studentName + ' (' + r.course + ' - ' + r.subjectName + ') ' +
+        'and all ' + n + ' attendance date' + (n === 1 ? '' : 's') + '?\n\nThis cannot be undone.'
+      );
+      if (!ok) return;
+      try {
+        const res = await fetch(API_URL + '?id=' + encodeURIComponent(r._id), {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error(await readError(res));
+        loadRecords();
+      } catch (error) {
+        alert('Failed to delete: ' + error.message);
+      }
+    }
+
+    $('editCancel').addEventListener('click', () => $('editDialog').close());
+
+    $('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        studentName: $('editName').value,
+        subjectName: $('editSubject').value,
+        course: $('editCourse').value,
+        dates: editDates
+      };
+      try {
+        const res = await fetch(API_URL + '?id=' + encodeURIComponent(editingId), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error(await readError(res));
+        const data = await res.json();
+        $('editDialog').close();
+        if (data.merged) {
+          alert('A student with these details already existed, so the two records were merged.');
+        }
+        loadRecords();
+      } catch (error) {
+        alert('Failed to save: ' + error.message);
+      }
+    });
 
     /* ---------- Student list ---------- */
     function buildCard(r, showMeta) {
@@ -601,6 +806,22 @@
       const list = (r.attendance || []).map(a => formatDate(a.date)).join(', ');
       dates.textContent = 'Present: ' + (list || 'none');
       card.appendChild(dates);
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'mini';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', () => openEdit(r));
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'mini danger';
+      del.textContent = 'Delete';
+      del.addEventListener('click', () => deleteStudent(r));
+      actions.appendChild(edit);
+      actions.appendChild(del);
+      card.appendChild(actions);
       return card;
     }
 
