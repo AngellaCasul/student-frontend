@@ -113,6 +113,11 @@
       color: var(--text);
       border: 1px solid var(--line);
     }
+    .form-hint {
+      margin: -2px 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
 
     /* Right side */
     .container {
@@ -445,6 +450,7 @@
         <input type="text" id="subjectName" placeholder="Subject name" required>
         <input type="text" id="course" placeholder="Course (e.g., IT3-A)" required>
         <input type="date" id="date" required>
+        <p class="form-hint" id="dateHint"></p>
         <button type="submit">Submit to Database</button>
       </form>
     </aside>
@@ -510,6 +516,7 @@
 
   <script>
     const API_URL = 'https://studentapibackend.vercel.app/api';
+    const MAX_PAST_DAYS = 30; // same as the backend
     let allRecords = [];
     let editingId = null;
     let editDates = [];
@@ -534,6 +541,14 @@
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       return y + '-' + m + '-' + day;
+    }
+
+    // The attendance date can be today or up to MAX_PAST_DAYS days ago
+    function setDateLimits() {
+      $('date').min = localKey(MAX_PAST_DAYS);
+      $('date').max = localKey(0);
+      $('dateHint').textContent =
+        'You can record today or up to ' + MAX_PAST_DAYS + ' days back.';
     }
 
     function fillSelect(select, values, allLabel) {
@@ -931,14 +946,17 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error(await readError(res));
         $('dataForm').reset();
+        setDateLimits();
         loadRecords();
       } catch (error) {
-        alert('Failed to submit record.');
+        alert('Failed to submit record: ' + error.message);
       }
     });
 
+    setDateLimits();
+    $('date').addEventListener('focus', setDateLimits);
     loadRecords();
   </script>
 </body>
