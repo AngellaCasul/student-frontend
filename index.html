@@ -347,6 +347,8 @@
     /* Edit dialog */
     dialog {
       width: min(520px, 92vw);
+      max-height: 92vh;
+      overflow-y: auto;
       background: var(--surface);
       color: var(--text);
       border: 1px solid var(--line);
@@ -377,43 +379,59 @@
     }
     .edit-dates {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
-    .date-pill {
-      display: inline-flex;
+    .date-row {
+      display: flex;
+      gap: 8px;
       align-items: center;
-      gap: 4px;
-      padding: 4px 6px 4px 12px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      font-size: 13px;
-      color: var(--gold);
     }
-    .date-pill button {
-      display: inline-block;
+    .date-row input {
+      flex: 1;
       width: auto;
-      padding: 0 8px;
-      background: transparent;
+      margin-bottom: 0;
+      padding: 10px 12px;
+    }
+    #editAddDate { margin-bottom: 12px; }
+    .edit-note { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+    .dialog-error {
+      margin: 0 0 12px;
       color: #ff8a80;
-      border: 0;
-      border-radius: 50%;
-      font-size: 16px;
-      line-height: 1.5;
+      font-size: 13px;
     }
-    .date-pill button:hover {
-      transform: none;
-      filter: none;
-      box-shadow: none;
-      background: rgba(255, 138, 128, 0.18);
-    }
-    .edit-note { margin: 0 0 18px; color: var(--muted); font-size: 12px; }
+    .dialog-error:empty { display: none; }
     .dialog-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
+
+    /* Feedback message (toast) */
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      max-width: min(420px, calc(100vw - 48px));
+      padding: 14px 18px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left-width: 5px;
+      color: var(--text);
+      font-size: 14px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 1000;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-color: #7bd88f; }
+    .toast.error { border-color: #ff8a80; }
+    .toast.info { border-color: var(--gold); }
 
     /* Narrower screens */
     @media (max-width: 1200px) {
@@ -437,6 +455,7 @@
     @media (max-width: 560px) {
       .toolbar { grid-template-columns: 1fr; }
       .cols { grid-template-columns: 1fr; }
+      .toast { left: 16px; right: 16px; bottom: 16px; max-width: none; }
     }
   </style>
 </head>
@@ -448,7 +467,7 @@
       <form id="dataForm">
         <input type="text" id="studentName" placeholder="Student name" required>
         <input type="text" id="subjectName" placeholder="Subject name" required>
-        <input type="text" id="course" placeholder="Course (e.g., IT3-A)" required>
+        <input type="text" id="course" placeholder="Course / Section (e.g., IT3-A)" required>
         <input type="date" id="date" required>
         <p class="form-hint" id="dateHint"></p>
         <button type="submit">Submit to Database</button>
@@ -458,7 +477,7 @@
     <main class="container">
       <section class="stats">
         <div class="stat"><div class="stat-value" id="statStudents">0</div><div class="stat-label">Students</div></div>
-        <div class="stat"><div class="stat-value" id="statCourses">0</div><div class="stat-label">Courses</div></div>
+        <div class="stat"><div class="stat-value" id="statCourses">0</div><div class="stat-label">Courses / Sections</div></div>
         <div class="stat"><div class="stat-value" id="statDays">0</div><div class="stat-label">Lab days recorded</div></div>
         <div class="stat"><div class="stat-value" id="statLatest">-</div><div class="stat-label">Latest date recorded</div></div>
       </section>
@@ -495,6 +514,8 @@
     </main>
   </div>
 
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
   <dialog id="editDialog">
     <h3>Edit student</h3>
     <form id="editForm">
@@ -502,11 +523,13 @@
       <input type="text" id="editName" required>
       <label for="editSubject">Subject name</label>
       <input type="text" id="editSubject" required>
-      <label for="editCourse">Course</label>
+      <label for="editCourse">Course / Section</label>
       <input type="text" id="editCourse" required>
       <label>Attendance dates</label>
       <div class="edit-dates" id="editDates"></div>
-      <p class="edit-note">Click the x on a date to remove it. Changes are saved when you press Save.</p>
+      <button type="button" class="mini" id="editAddDate">+ Add date</button>
+      <p class="edit-note">Change a date by picking a new one, or remove it. Nothing is saved until you press Save changes.</p>
+      <p class="dialog-error" id="editError"></p>
       <div class="dialog-actions">
         <button type="button" class="secondary" id="editCancel">Cancel</button>
         <button type="submit">Save changes</button>
@@ -522,6 +545,15 @@
     let editDates = [];
 
     const $ = (id) => document.getElementById(id);
+
+    /* ---------- Feedback message ---------- */
+    function showToast(message, type) {
+      const t = $('toast');
+      t.textContent = message;
+      t.className = 'toast show ' + (type || 'success');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => { t.className = 'toast'; }, 4000);
+    }
 
     function formatDate(value) {
       return new Date(value).toLocaleDateString('en-US', {
@@ -584,7 +616,7 @@
     function updateFilters() {
       const courses = [...new Set(allRecords.map(r => r.course))].sort();
       const subjects = [...new Set(allRecords.map(r => r.subjectName))].sort();
-      fillSelect($('courseFilter'), courses, 'All courses');
+      fillSelect($('courseFilter'), courses, 'All courses / sections');
       fillSelect($('subjectFilter'), subjects, 'All subjects');
     }
 
@@ -707,32 +739,39 @@
       }
     }
 
+    // Each date is an editable date field with a Remove button
     function renderEditDates() {
       const box = $('editDates');
       box.textContent = '';
       if (editDates.length === 0) {
         const p = document.createElement('span');
         p.className = 'chips-label';
-        p.textContent = 'No dates';
+        p.textContent = 'No dates yet';
         box.appendChild(p);
         return;
       }
-      editDates.forEach(key => {
-        const pill = document.createElement('span');
-        pill.className = 'date-pill';
-        const text = document.createElement('span');
-        text.textContent = formatDate(key);
-        const x = document.createElement('button');
-        x.type = 'button';
-        x.textContent = '\u00d7';
-        x.title = 'Remove this date';
-        x.addEventListener('click', () => {
-          editDates = editDates.filter(k => k !== key);
+      editDates.forEach((key, i) => {
+        const row = document.createElement('div');
+        row.className = 'date-row';
+
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.value = key;
+        input.max = localKey(0); // no future dates
+        input.addEventListener('change', () => { editDates[i] = input.value; });
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'mini danger';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => {
+          editDates.splice(i, 1);
           renderEditDates();
         });
-        pill.appendChild(text);
-        pill.appendChild(x);
-        box.appendChild(pill);
+
+        row.appendChild(input);
+        row.appendChild(remove);
+        box.appendChild(row);
       });
     }
 
@@ -741,6 +780,7 @@
       $('editName').value = r.studentName || '';
       $('editSubject').value = r.subjectName || '';
       $('editCourse').value = r.course || '';
+      $('editError').textContent = '';
       editDates = (r.attendance || []).map(a => dayKey(a.date)).sort();
       renderEditDates();
       $('editDialog').showModal();
@@ -758,21 +798,30 @@
           method: 'DELETE'
         });
         if (!res.ok) throw new Error(await readError(res));
+        showToast(r.studentName + ' was deleted.', 'success');
         loadRecords();
       } catch (error) {
-        alert('Failed to delete: ' + error.message);
+        showToast('Could not delete: ' + error.message, 'error');
       }
     }
 
     $('editCancel').addEventListener('click', () => $('editDialog').close());
 
+    $('editAddDate').addEventListener('click', () => {
+      editDates.push('');
+      renderEditDates();
+      const inputs = $('editDates').querySelectorAll('input');
+      if (inputs.length) inputs[inputs.length - 1].focus();
+    });
+
     $('editForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      $('editError').textContent = '';
       const body = {
         studentName: $('editName').value,
         subjectName: $('editSubject').value,
         course: $('editCourse').value,
-        dates: editDates
+        dates: editDates.filter(Boolean)
       };
       try {
         const res = await fetch(API_URL + '?id=' + encodeURIComponent(editingId), {
@@ -784,11 +833,13 @@
         const data = await res.json();
         $('editDialog').close();
         if (data.merged) {
-          alert('A student with these details already existed, so the two records were merged.');
+          showToast('Saved. These details matched an existing student, so the two records were merged.', 'info');
+        } else {
+          showToast('Changes saved for ' + body.studentName.trim() + '.', 'success');
         }
         loadRecords();
       } catch (error) {
-        alert('Failed to save: ' + error.message);
+        $('editError').textContent = 'Could not save: ' + error.message;
       }
     });
 
@@ -947,11 +998,14 @@
           body: JSON.stringify(body)
         });
         if (!res.ok) throw new Error(await readError(res));
+        showToast(
+          'Attendance recorded for ' + body.studentName.trim() +
+          ' on ' + formatDate(body.date) + '.', 'success');
         $('dataForm').reset();
         setDateLimits();
         loadRecords();
       } catch (error) {
-        alert('Failed to submit record: ' + error.message);
+        showToast('Could not add record: ' + error.message, 'error');
       }
     });
 
